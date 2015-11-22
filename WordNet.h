@@ -1,4 +1,6 @@
 
+#pragma once
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -42,6 +44,42 @@ class WordNet {
 	std::vector<Vertex> digraph;
 	std::vector<std::string> vNouns;
 	std::unordered_map<std::string, Noun> mpNouns;
+	
+	// {distance, synset id}
+	std::pair<int, int> bfs(const std::list<int> &vIdsA, const std::list<int> &vIdsB) {
+		const int A = 0;
+		const int B = 1;
+		
+		// {distance, noun id}
+		std::vector<std::pair<int, int>> distTo(digraph.size(), {-1, 0});
+		std::queue<int> q;
+		for (int vId : vIdsA) {
+			distTo[vId] = {0, A};
+			q.push(vId);
+		}
+		for (int vId : vIdsB) {
+			if (distTo[vId].first == 0 &&
+				distTo[vId].second == A)
+				return {0, vId};
+			distTo[vId] = {0, B};
+			q.push(vId);
+		}
+		
+		while (!q.empty()) {
+			int vId = q.front(); q.pop();
+			Vertex &v = digraph[vId];
+			for (int adjVId : v.vIds) {
+				if (distTo[adjVId].first < 0) {
+					distTo[adjVId] = {distTo[vId].first + 1, distTo[vId].second};
+					q.push(adjVId);
+				} else if (distTo[adjVId].second != distTo[vId].second) {
+					int dist = distTo[adjVId].first + distTo[vId].first + 1;
+					return {dist, adjVId};
+				}
+			}
+		}
+		return {-1, -1};
+	}
 public:
 	WordNet(const std::string &synsets, const std::string &hypernyms) {
 		std::ifstream inSynsets(synsets);
@@ -107,42 +145,6 @@ public:
 	
 	bool isNoun(const std::string &word) {
 		return mpNouns.count(word);
-	}
-	
-	// {distance, vertex(synset) id}
-	std::pair<int, int> bfs(const std::list<int> &vIdsA, const std::list<int> &vIdsB) {
-		const int A = 0;
-		const int B = 1;
-		
-		// {distance, noun synset id}
-		std::vector<std::pair<int, int>> distTo(digraph.size(), {-1, 0});
-		std::queue<int> q;
-		for (int vId : vIdsA) {
-			distTo[vId] = {0, A};
-			q.push(vId);
-		}
-		for (int vId : vIdsB) {
-			if (distTo[vId].first == 0 &&
-				distTo[vId].second == A)
-				return {0, vId};
-			distTo[vId] = {0, B};
-			q.push(vId);
-		}
-		
-		while (!q.empty()) {
-			int vId = q.front(); q.pop();
-			Vertex &v = digraph[vId];
-			for (int adjVId : v.vIds) {
-				if (distTo[adjVId].first < 0) {
-					distTo[adjVId] = {distTo[vId].first + 1, distTo[vId].second};
-					q.push(adjVId);
-				} else if (distTo[adjVId].second != distTo[vId].second) {
-					int dist = distTo[adjVId].first + distTo[vId].first + 1;
-					return {dist, adjVId};
-				}
-			}
-		}
-		return {-1, -1};
 	}
 	
 	int distance(std::string &nounA, std::string &nounB) {
